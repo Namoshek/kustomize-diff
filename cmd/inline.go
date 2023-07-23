@@ -164,10 +164,10 @@ func parseManifest(content string) (manifest, error) {
 	}
 
 	return manifest{
-		apiVersion: getMapValueOrDefault(data, "apiVersion", "").(string),
-		kind:       getMapValueOrDefault(data, "kind", "").(string),
-		name:       getMapValueOrDefault(getMapValueOrDefault(data, "metadata", make(map[string]interface{})).(map[string]interface{}), "name", "").(string),
-		namespace:  getMapValueOrDefault(getMapValueOrDefault(data, "metadata", make(map[string]interface{})).(map[string]interface{}), "namespace", "").(string),
+		apiVersion: util.GetMapValueOrDefault(data, "apiVersion", "").(string),
+		kind:       util.GetMapValueOrDefault(data, "kind", "").(string),
+		name:       util.GetMapValueOrDefault(util.GetMapValueOrDefault(data, "metadata", make(map[string]interface{})).(map[string]interface{}), "name", "").(string),
+		namespace:  util.GetMapValueOrDefault(util.GetMapValueOrDefault(data, "metadata", make(map[string]interface{})).(map[string]interface{}), "namespace", "").(string),
 		content:    content,
 	}, nil
 }
@@ -210,12 +210,4 @@ func printVerbose(cmd *cobra.Command, text string) {
 	if verbose, _ := cmd.Flags().GetBool("verbose"); verbose {
 		fmt.Println(text)
 	}
-}
-
-func getMapValueOrDefault(dict map[string]interface{}, key string, defaultValue interface{}) interface{} {
-	if x, found := dict[key]; found {
-		return x
-	}
-
-	return defaultValue
 }
