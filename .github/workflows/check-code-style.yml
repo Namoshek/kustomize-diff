@@ -1,0 +1,27 @@
+name: 'Check Code Style'
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  release:
+    name: 'Check Code Style'
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 'Checkout Repository'
+        uses: actions/checkout@v3
+
+      - name: 'Set up Go'
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: 'go.mod'
+          cache-dependency-path: 'go.sum'
+
+      - name: 'go fmt'
+        run: if [ "$(go fmt -s -l . | wc -l)" -gt 0 ]; then exit 1; fi
