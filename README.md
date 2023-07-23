@@ -12,7 +12,8 @@ To download and install in one go (make sure to select the correct binary for yo
 ```sh
 wget https://github.com/Namoshek/kustomize-diff/releases/download/v0.1.0/kustomize-diff-v0.1.0-linux-amd64.tar.gz \
   && tar -xzvf kustomize-diff-v0.1.0-linux-amd64.tar.gz \
-  && sudo mv kustomize-diff-v0.1.0-linux-amd64.tar.gz /usr/local/bin/kustomize-diff-v0.1.0-linux-amd64.tar.gz
+  && chmod a+x kustomize-diff \
+  && sudo mv kustomize-diff /usr/local/bin/kustomize-diff
 ```
 
 ## Usage
