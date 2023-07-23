@@ -18,7 +18,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type Manifest struct {
+type manifest struct {
 	apiVersion string
 	kind       string
 	name       string
@@ -34,7 +34,7 @@ var inlineCmd = &cobra.Command{
 	Args:  cobra.MatchAll(cobra.ExactArgs(2), cobra.OnlyValidArgs),
 	Run: func(cmd *cobra.Command, args []string) {
 		// Ensure the given Kustomization directories exist.
-		PrintVerbose(cmd, "Checking existence of given Kustomzation directories.")
+		printVerbose(cmd, "Checking existence of given Kustomzation directories.")
 
 		pathToOldVersion, pathToNewVersion := args[0], args[1]
 
@@ -49,22 +49,22 @@ var inlineCmd = &cobra.Command{
 		}
 
 		// Build the Kustomizations in a safe way.
-		PrintVerbose(cmd, "Building Kustomizations for both version.")
+		printVerbose(cmd, "Building Kustomizations for both version.")
 
-		oldKustomization, err := KustomizeBuild(cmd, pathToOldVersion)
+		oldKustomization, err := kustomizeBuild(cmd, pathToOldVersion)
 		if err != nil {
 			fmt.Println("Building the Kustomization for '" + pathToOldVersion + "' failed.")
 			os.Exit(2)
 		}
 
-		newKustomization, err := KustomizeBuild(cmd, pathToNewVersion)
+		newKustomization, err := kustomizeBuild(cmd, pathToNewVersion)
 		if err != nil {
 			fmt.Println("Building the Kustomization for '" + pathToNewVersion + "' failed.")
 			os.Exit(2)
 		}
 
 		// Create a diff of both Kustomizations and print the results.
-		if err := CreateAndPrintDiff(oldKustomization, newKustomization); err != nil {
+		if err := createAndPrintDiff(oldKustomization, newKustomization); err != nil {
 			fmt.Println("Creating the diff failed:")
 			fmt.Println(err)
 			os.Exit(3)
@@ -80,8 +80,8 @@ func init() {
 	inlineCmd.Flags().StringP("kustomize-executable", "k", "kustomize", "Path to the kustomize binary")
 }
 
-func KustomizeBuild(cmd *cobra.Command, path string) (string, error) {
-	PrintVerbose(cmd, "Building Kustomization for '"+path+"'.")
+func kustomizeBuild(cmd *cobra.Command, path string) (string, error) {
+	printVerbose(cmd, "Building Kustomization for '"+path+"'.")
 
 	kustomizeExecutable, _ := cmd.Flags().GetString("kustomize-executable")
 	out, err := exec.Command(kustomizeExecutable, "build", path).Output()
@@ -93,36 +93,36 @@ func KustomizeBuild(cmd *cobra.Command, path string) (string, error) {
 	return string(out), nil
 }
 
-func CreateAndPrintDiff(old string, new string) error {
+func createAndPrintDiff(old string, new string) error {
 	// Parse the Kustomizations into individual manifests for easier comparison.
-	oldManifests, err := SplitKustomizationIntoManifests(old)
+	oldManifests, err := splitKustomizationIntoManifests(old)
 	if err != nil {
 		return err
 	}
 
-	newManifests, err := SplitKustomizationIntoManifests(new)
+	newManifests, err := splitKustomizationIntoManifests(new)
 	if err != nil {
 		return err
 	}
 
 	// Remove all unchanged manifests as we do not need to process them further.
-	oldManifests, newManifests = FilterUnchangedManifests(oldManifests, newManifests)
+	oldManifests, newManifests = filterUnchangedManifests(oldManifests, newManifests)
 
 	// Retrieve all unique manifest hashes and iterate them to print the diff per manifest.
-	manifestHashes := GetUniqueManifestHashes(oldManifests, newManifests)
+	manifestHashes := getUniqueManifestHashes(oldManifests, newManifests)
 
 	for _, hash := range manifestHashes {
 		oldManifest, newManifest := oldManifests[hash], newManifests[hash]
 
-		CreateAndPrintDiffForManifest(oldManifest, newManifest)
+		createAndPrintDiffForManifest(oldManifest, newManifest)
 	}
 
 	return nil
 }
 
-func CreateAndPrintDiffForManifest(old Manifest, new Manifest) {
+func createAndPrintDiffForManifest(old manifest, new manifest) {
 	header := old
-	if header == (Manifest{}) {
+	if header == (manifest{}) {
 		header = new
 	}
 
@@ -135,48 +135,48 @@ func CreateAndPrintDiffForManifest(old Manifest, new Manifest) {
 	fmt.Println("```")
 }
 
-func SplitKustomizationIntoManifests(kustomization string) (map[string]Manifest, error) {
+func splitKustomizationIntoManifests(kustomization string) (map[string]manifest, error) {
 	kustomization = strings.ReplaceAll(kustomization, "\r\n", "\n")
 	parts := strings.Split(kustomization, "---\n")
 
-	result := make(map[string]Manifest)
+	result := make(map[string]manifest)
 	for i := range parts {
-		manifest, err := ParseManifest(parts[i])
+		manifest, err := parseManifest(parts[i])
 		if err != nil {
 			return nil, errors.Join(errors.New("Parsing manifest failed."), err)
 		}
 
-		hash := CalculateHash(manifest)
+		hash := calculateHash(manifest)
 
 		result[hash] = manifest
 	}
 	return result, nil
 }
 
-func ParseManifest(content string) (Manifest, error) {
+func parseManifest(content string) (manifest, error) {
 	var data map[string]interface{}
 	err := yaml.Unmarshal([]byte(content), &data)
 
 	if err != nil {
-		return Manifest{}, errors.Join(errors.New("Parsing manifest to retrieve headers failed."), err)
+		return manifest{}, errors.Join(errors.New("Parsing manifest to retrieve headers failed."), err)
 	}
 
-	return Manifest{
-		apiVersion: GetMapValueOrDefault(data, "apiVersion", "").(string),
-		kind:       GetMapValueOrDefault(data, "kind", "").(string),
-		name:       GetMapValueOrDefault(GetMapValueOrDefault(data, "metadata", make(map[string]interface{})).(map[string]interface{}), "name", "").(string),
-		namespace:  GetMapValueOrDefault(GetMapValueOrDefault(data, "metadata", make(map[string]interface{})).(map[string]interface{}), "namespace", "").(string),
+	return manifest{
+		apiVersion: getMapValueOrDefault(data, "apiVersion", "").(string),
+		kind:       getMapValueOrDefault(data, "kind", "").(string),
+		name:       getMapValueOrDefault(getMapValueOrDefault(data, "metadata", make(map[string]interface{})).(map[string]interface{}), "name", "").(string),
+		namespace:  getMapValueOrDefault(getMapValueOrDefault(data, "metadata", make(map[string]interface{})).(map[string]interface{}), "namespace", "").(string),
 		content:    content,
 	}, nil
 }
 
-func CalculateHash(manifest Manifest) string {
+func calculateHash(manifest manifest) string {
 	input := fmt.Sprintf("apiVersion: '%s', kind: '%s', name: '%s', namespace: '%s'", manifest.apiVersion, manifest.kind, manifest.name, manifest.namespace)
-	return CalculateMd5Hash(input)
+	return calculateMd5Hash(input)
 }
 
-func FilterUnchangedManifests(oldManifests map[string]Manifest, newManifests map[string]Manifest) (map[string]Manifest, map[string]Manifest) {
-	filteredOldManifests, filteredNewManifests := make(map[string]Manifest), make(map[string]Manifest)
+func filterUnchangedManifests(oldManifests map[string]manifest, newManifests map[string]manifest) (map[string]manifest, map[string]manifest) {
+	filteredOldManifests, filteredNewManifests := make(map[string]manifest), make(map[string]manifest)
 
 	for key, element := range oldManifests {
 		if manifest, exists := newManifests[key]; exists && manifest.content == element.content {
@@ -197,20 +197,20 @@ func FilterUnchangedManifests(oldManifests map[string]Manifest, newManifests map
 	return filteredOldManifests, filteredNewManifests
 }
 
-func GetUniqueManifestHashes(old map[string]Manifest, new map[string]Manifest) []string {
+func getUniqueManifestHashes(old map[string]manifest, new map[string]manifest) []string {
 	oldKeys := maps.Keys(old)
 	keys := append(oldKeys, maps.Keys(new)...)
 
 	return set.From[string](keys).Slice()
 }
 
-func PrintVerbose(cmd *cobra.Command, text string) {
+func printVerbose(cmd *cobra.Command, text string) {
 	if verbose, _ := cmd.Flags().GetBool("verbose"); verbose {
 		fmt.Println(text)
 	}
 }
 
-func GetMapValueOrDefault(dict map[string]interface{}, key string, defaultValue interface{}) interface{} {
+func getMapValueOrDefault(dict map[string]interface{}, key string, defaultValue interface{}) interface{} {
 	if x, found := dict[key]; found {
 		return x
 	}
@@ -218,7 +218,7 @@ func GetMapValueOrDefault(dict map[string]interface{}, key string, defaultValue 
 	return defaultValue
 }
 
-func CalculateMd5Hash(text string) string {
+func calculateMd5Hash(text string) string {
 	hash := md5.Sum([]byte(text))
 
 	return hex.EncodeToString(hash[:])
