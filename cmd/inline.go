@@ -32,52 +32,54 @@ var inlineCmd = &cobra.Command{
 	Short: "Creates an inline diff of two Kustomizations",
 	Long:  `Use this action for a quick inline diff of two Kustomizations.`,
 	Args:  cobra.MatchAll(cobra.ExactArgs(2), cobra.OnlyValidArgs),
-	Run: func(cmd *cobra.Command, args []string) {
-		// Ensure the given Kustomization directories exist.
-		printVerbose(cmd, "Checking existence of given Kustomzation directories.")
-
-		pathToOldVersion, pathToNewVersion := args[0], args[1]
-
-		if _, err := os.Stat(pathToOldVersion); os.IsNotExist(err) {
-			fmt.Println("Directory '" + pathToOldVersion + "' does not exist.")
-			os.Exit(1)
-		}
-
-		if _, err := os.Stat(pathToNewVersion); os.IsNotExist(err) {
-			fmt.Println("Directory '" + pathToNewVersion + "' does not exist.")
-			os.Exit(1)
-		}
-
-		// Build the Kustomizations in a safe way.
-		printVerbose(cmd, "Building Kustomizations for both version.")
-
-		oldKustomization, err := kustomizeBuild(cmd, pathToOldVersion)
-		if err != nil {
-			fmt.Println("Building the Kustomization for '" + pathToOldVersion + "' failed.")
-			os.Exit(2)
-		}
-
-		newKustomization, err := kustomizeBuild(cmd, pathToNewVersion)
-		if err != nil {
-			fmt.Println("Building the Kustomization for '" + pathToNewVersion + "' failed.")
-			os.Exit(2)
-		}
-
-		// Create a diff of both Kustomizations and print the results.
-		if err := createAndPrintDiff(oldKustomization, newKustomization); err != nil {
-			fmt.Println("Creating the diff failed:")
-			fmt.Println(err)
-			os.Exit(3)
-		}
-
-		os.Exit(0)
-	},
+	Run: runCommand,
 }
 
 func init() {
 	rootCmd.AddCommand(inlineCmd)
 
 	inlineCmd.Flags().StringP("kustomize-executable", "k", "kustomize", "Path to the kustomize binary")
+}
+
+func runCommand(cmd *cobra.Command, args []string) {
+	// Ensure the given Kustomization directories exist.
+	printVerbose(cmd, "Checking existence of given Kustomzation directories.")
+
+	pathToOldVersion, pathToNewVersion := args[0], args[1]
+
+	if _, err := os.Stat(pathToOldVersion); os.IsNotExist(err) {
+		fmt.Println("Directory '" + pathToOldVersion + "' does not exist.")
+		os.Exit(1)
+	}
+
+	if _, err := os.Stat(pathToNewVersion); os.IsNotExist(err) {
+		fmt.Println("Directory '" + pathToNewVersion + "' does not exist.")
+		os.Exit(1)
+	}
+
+	// Build the Kustomizations in a safe way.
+	printVerbose(cmd, "Building Kustomizations for both version.")
+
+	oldKustomization, err := kustomizeBuild(cmd, pathToOldVersion)
+	if err != nil {
+		fmt.Println("Building the Kustomization for '" + pathToOldVersion + "' failed.")
+		os.Exit(2)
+	}
+
+	newKustomization, err := kustomizeBuild(cmd, pathToNewVersion)
+	if err != nil {
+		fmt.Println("Building the Kustomization for '" + pathToNewVersion + "' failed.")
+		os.Exit(2)
+	}
+
+	// Create a diff of both Kustomizations and print the results.
+	if err := createAndPrintDiff(oldKustomization, newKustomization); err != nil {
+		fmt.Println("Creating the diff failed:")
+		fmt.Println(err)
+		os.Exit(3)
+	}
+
+	os.Exit(0)
 }
 
 func kustomizeBuild(cmd *cobra.Command, path string) (string, error) {
