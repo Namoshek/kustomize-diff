@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/namoshek/kustomize-diff/util"
+	"github.com/namoshek/kustomize-diff/utils"
 
 	"github.com/hashicorp/go-set"
 	"github.com/kylelemons/godebug/diff"
@@ -164,17 +164,17 @@ func parseManifest(content string) (manifest, error) {
 	}
 
 	return manifest{
-		apiVersion: util.GetMapValueOrDefault(data, "apiVersion", "").(string),
-		kind:       util.GetMapValueOrDefault(data, "kind", "").(string),
-		name:       util.GetMapValueOrDefault(util.GetMapValueOrDefault(data, "metadata", make(map[string]interface{})).(map[string]interface{}), "name", "").(string),
-		namespace:  util.GetMapValueOrDefault(util.GetMapValueOrDefault(data, "metadata", make(map[string]interface{})).(map[string]interface{}), "namespace", "").(string),
+		apiVersion: utils.GetMapValueOrDefault(data, "apiVersion", "").(string),
+		kind:       utils.GetMapValueOrDefault(data, "kind", "").(string),
+		name:       utils.GetMapValueOrDefault(utils.GetMapValueOrDefault(data, "metadata", make(map[string]interface{})).(map[string]interface{}), "name", "").(string),
+		namespace:  utils.GetMapValueOrDefault(utils.GetMapValueOrDefault(data, "metadata", make(map[string]interface{})).(map[string]interface{}), "namespace", "").(string),
 		content:    content,
 	}, nil
 }
 
 func calculateHash(manifest manifest) string {
 	input := fmt.Sprintf("apiVersion: '%s', kind: '%s', name: '%s', namespace: '%s'", manifest.apiVersion, manifest.kind, manifest.name, manifest.namespace)
-	return util.CalculateMD5AsString(input)
+	return utils.CalculateMD5AsString(input)
 }
 
 func filterUnchangedManifests(oldManifests map[string]manifest, newManifests map[string]manifest) (map[string]manifest, map[string]manifest) {
