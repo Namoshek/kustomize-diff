@@ -71,6 +71,26 @@ In case of success, the command will exit with the exit code `0`. Otherwise, an 
 
 To use this utility in a pull request pipeline, it is recommended to checkout the source repository two times, once for the pull request target branch and once for the pull request source branch. The output of `kustomize-diff` can then be posted as pull request comment for review, for example.
 
+## Development
+
+### Run locally
+
+The application can be run locally using:
+
+```sh
+go run main.go <arguments> [flags]
+```
+
+### Build
+
+To build the application, use:
+
+```sh
+env GOOS=<os> GOARCH=<arch> go build -o bin/kustomize-diff main.go
+```
+
+where `GOOS`/`GOARCH` are from `go tool dist list`, e.g. `GOOS=linux GOARCH=amd64` or `GOOS=windows GOARCH=amd64`.
+
 ## License
 
 `Namoshek/kustomize-diff` is open-sourced software licensed under the [MIT license](LICENSE).
