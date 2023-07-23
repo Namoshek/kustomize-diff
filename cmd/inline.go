@@ -1,13 +1,13 @@
 package cmd
 
 import (
-	"crypto/md5"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/namoshek/kustomize-diff/util"
 
 	"github.com/hashicorp/go-set"
 	"github.com/kylelemons/godebug/diff"
@@ -174,7 +174,7 @@ func parseManifest(content string) (manifest, error) {
 
 func calculateHash(manifest manifest) string {
 	input := fmt.Sprintf("apiVersion: '%s', kind: '%s', name: '%s', namespace: '%s'", manifest.apiVersion, manifest.kind, manifest.name, manifest.namespace)
-	return calculateMd5Hash(input)
+	return util.CalculateMD5AsString(input)
 }
 
 func filterUnchangedManifests(oldManifests map[string]manifest, newManifests map[string]manifest) (map[string]manifest, map[string]manifest) {
@@ -218,10 +218,4 @@ func getMapValueOrDefault(dict map[string]interface{}, key string, defaultValue 
 	}
 
 	return defaultValue
-}
-
-func calculateMd5Hash(text string) string {
-	hash := md5.Sum([]byte(text))
-
-	return hex.EncodeToString(hash[:])
 }
