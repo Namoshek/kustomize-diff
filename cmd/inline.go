@@ -129,6 +129,7 @@ func CreateAndPrintDiffForManifest(old Manifest, new Manifest) {
 	fmt.Println("```diff")
 
 	diff := diff.Diff(old.content, new.content)
+	diff = strings.TrimSuffix(diff, "\n ")
 	fmt.Println(diff)
 
 	fmt.Println("```")
