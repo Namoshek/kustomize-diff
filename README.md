@@ -2,9 +2,20 @@
 
 A go utility which allows to generate the diff between two Kustomization directories. This is for example useful for pull request reviews when the result of the Kustomization should be reviewed and not only the changes in the sources.
 
-## Usage
+## Install
 
 The latest version can be downloaded from the [releases](https://github.com/Namoshek/kustomize-diff/releases).
+Make sure the downloaded binary is executable (`chmod -x`) and place it somewhere in the `$PATH` for easy access.
+
+To download and install in one go (make sure to select the correct binary for your system), use:
+
+```sh
+wget https://github.com/Namoshek/kustomize-diff/releases/download/v0.1.0/kustomize-diff-v0.1.0-linux-amd64.tar.gz \
+  && tar -xzvf kustomize-diff-v0.1.0-linux-amd64.tar.gz \
+  && sudo mv kustomize-diff-v0.1.0-linux-amd64.tar.gz /usr/local/bin/kustomize-diff-v0.1.0-linux-amd64.tar.gz
+```
+
+## Usage
 
 Running `kustomize-diff` is as simple as:
 
