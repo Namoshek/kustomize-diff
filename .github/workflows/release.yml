@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   release:
-    name: 'Release Go Binary'
+    name: 'Release Go Binaries'
 
     runs-on: ubuntu-latest
 

@@ -1,0 +1,36 @@
+name: 'Build'
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  release:
+    name: 'Build Go Binaries'
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        goos: [linux, windows, darwin]
+        goarch: ["386", amd64, arm64]
+        exclude:
+          - goarch: "386"
+            goos: darwin
+          - goarch: arm64
+            goos: windows
+    
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: 'go.mod'
+          cache-dependency-path: 'go.sum'
+
+      - name: Build Binary
+        run: env GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o bin/kustomize-diff-${{ matrix.goos }}-${{ matrix.goarch }} main.go
