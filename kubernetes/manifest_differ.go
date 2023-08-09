@@ -30,7 +30,7 @@ func CreateAndPrintDiffForManifests(old Manifest, new Manifest, formatAsMarkdown
 
 	// In case a removed manifest is given, the new content is diffed as empty line, which we remove.
 	diff = strings.TrimSuffix(diff, "\n+")
-	
+
 	fmt.Fprintln(output, diff)
 
 	if formatAsMarkdownCodeBlock {

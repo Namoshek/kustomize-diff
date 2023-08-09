@@ -24,4 +24,4 @@ jobs:
           cache-dependency-path: 'go.sum'
 
       - name: 'go fmt'
-        run: if [ "$(go fmt -s -l . | wc -l)" -gt 0 ]; then exit 1; fi
+        run: if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then exit 1; fi
