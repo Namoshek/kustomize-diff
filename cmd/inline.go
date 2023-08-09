@@ -7,8 +7,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/namoshek/kustomize-diff/utils"
-	"go.uber.org/zap"
+	k8s "github.com/namoshek/kustomize-diff/kubernetes"
+	utils "github.com/namoshek/kustomize-diff/utils"
 
 	"github.com/hashicorp/go-set"
 	"github.com/kylelemons/godebug/diff"
@@ -16,24 +16,20 @@ import (
 
 	"golang.org/x/exp/maps"
 
-	"gopkg.in/yaml.v3"
+	"go.uber.org/zap"
 )
 
-type manifest struct {
-	apiVersion string
-	kind       string
-	name       string
-	namespace  string
-	content    string
-}
-
 // inlineCmd represents the inline command
-var inlineCmd = &cobra.Command{
-	Use:   "inline <pathToOldVersion> <pathToNewVersion>",
-	Short: "Creates an inline diff of two Kustomizations",
-	Long:  `Use this action for a quick inline diff of two Kustomizations.`,
-	Args:  cobra.MatchAll(cobra.ExactArgs(2), cobra.OnlyValidArgs),
-	Run:   runCommand,
+var inlineCmd = NewInlineCmd()
+
+func NewInlineCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "inline <pathToOldVersion> <pathToNewVersion>",
+		Short: "Creates an inline diff of two Kustomizations",
+		Long:  `Use this action for a quick inline diff of two Kustomizations.`,
+		Args:  cobra.MatchAll(cobra.ExactArgs(2), cobra.OnlyValidArgs),
+		Run:   runCommand,
+	}
 }
 
 func init() {
@@ -60,14 +56,20 @@ func runCommand(cmd *cobra.Command, args []string) {
 
 	// Build the Kustomizations in a safe way.
 	utils.Logger.Debug("Building Kustomizations for both version.")
+	
+	kustomizeExecutable, err := cmd.Flags().GetString("kustomize-executable")
+	if err != nil {
+		utils.Logger.Error("Reading --kustomize-executable option failed.")
+		os.Exit(2)
+	}
 
-	oldKustomization, err := kustomizeBuild(cmd, pathToOldVersion)
+	oldKustomization, err := kustomizeBuild(kustomizeExecutable, pathToOldVersion)
 	if err != nil {
 		utils.Logger.Error("Building the Kustomization for '" + pathToOldVersion + "' failed.")
 		os.Exit(2)
 	}
 
-	newKustomization, err := kustomizeBuild(cmd, pathToNewVersion)
+	newKustomization, err := kustomizeBuild(kustomizeExecutable, pathToNewVersion)
 	if err != nil {
 		utils.Logger.Error("Building the Kustomization for '" + pathToNewVersion + "' failed.")
 		os.Exit(2)
@@ -82,10 +84,9 @@ func runCommand(cmd *cobra.Command, args []string) {
 	os.Exit(0)
 }
 
-func kustomizeBuild(cmd *cobra.Command, path string) (string, error) {
+func kustomizeBuild(kustomizeExecutable string, path string) (string, error) {
 	utils.Logger.Debug("Building Kustomization for '" + path + "'.")
 
-	kustomizeExecutable, _ := cmd.Flags().GetString("kustomize-executable")
 	out, err := exec.Command(kustomizeExecutable, "build", path).Output()
 
 	if err != nil {
@@ -97,12 +98,12 @@ func kustomizeBuild(cmd *cobra.Command, path string) (string, error) {
 
 func createAndPrintDiff(old string, new string) error {
 	// Parse the Kustomizations into individual manifests for easier comparison.
-	oldManifests, err := splitKustomizationIntoManifests(old)
+	oldManifests, err := k8s.SplitKustomizationIntoManifests(old)
 	if err != nil {
 		return err
 	}
 
-	newManifests, err := splitKustomizationIntoManifests(new)
+	newManifests, err := k8s.SplitKustomizationIntoManifests(new)
 	if err != nil {
 		return err
 	}
@@ -122,66 +123,26 @@ func createAndPrintDiff(old string, new string) error {
 	return nil
 }
 
-func createAndPrintDiffForManifest(old manifest, new manifest) {
+func createAndPrintDiffForManifest(old k8s.Manifest, new k8s.Manifest) {
 	header := old
-	if header == (manifest{}) {
+	if header == (k8s.Manifest{}) {
 		header = new
 	}
 
 	fmt.Println("```diff")
 
-	diff := diff.Diff(old.content, new.content)
+	diff := diff.Diff(old.Content, new.Content)
 	diff = strings.TrimSuffix(diff, "\n ")
 	fmt.Println(diff)
 
 	fmt.Println("```")
 }
 
-func splitKustomizationIntoManifests(kustomization string) (map[string]manifest, error) {
-	kustomization = strings.ReplaceAll(kustomization, "\r\n", "\n")
-	parts := strings.Split(kustomization, "---\n")
-
-	result := make(map[string]manifest)
-	for i := range parts {
-		manifest, err := parseManifest(parts[i])
-		if err != nil {
-			return nil, errors.Join(errors.New("Parsing manifest failed."), err)
-		}
-
-		hash := calculateHash(manifest)
-
-		result[hash] = manifest
-	}
-	return result, nil
-}
-
-func parseManifest(content string) (manifest, error) {
-	var data map[string]interface{}
-	err := yaml.Unmarshal([]byte(content), &data)
-
-	if err != nil {
-		return manifest{}, errors.Join(errors.New("Parsing manifest to retrieve headers failed."), err)
-	}
-
-	return manifest{
-		apiVersion: utils.GetMapValueOrDefault(data, "apiVersion", "").(string),
-		kind:       utils.GetMapValueOrDefault(data, "kind", "").(string),
-		name:       utils.GetMapValueOrDefault(utils.GetMapValueOrDefault(data, "metadata", make(map[string]interface{})).(map[string]interface{}), "name", "").(string),
-		namespace:  utils.GetMapValueOrDefault(utils.GetMapValueOrDefault(data, "metadata", make(map[string]interface{})).(map[string]interface{}), "namespace", "").(string),
-		content:    content,
-	}, nil
-}
-
-func calculateHash(manifest manifest) string {
-	input := fmt.Sprintf("apiVersion: '%s', kind: '%s', name: '%s', namespace: '%s'", manifest.apiVersion, manifest.kind, manifest.name, manifest.namespace)
-	return utils.CalculateMD5AsString(input)
-}
-
-func filterUnchangedManifests(oldManifests map[string]manifest, newManifests map[string]manifest) (map[string]manifest, map[string]manifest) {
-	filteredOldManifests, filteredNewManifests := make(map[string]manifest), make(map[string]manifest)
+func filterUnchangedManifests(oldManifests map[string]k8s.Manifest, newManifests map[string]k8s.Manifest) (map[string]k8s.Manifest, map[string]k8s.Manifest) {
+	filteredOldManifests, filteredNewManifests := make(map[string]k8s.Manifest), make(map[string]k8s.Manifest)
 
 	for key, element := range oldManifests {
-		if manifest, exists := newManifests[key]; exists && manifest.content == element.content {
+		if manifest, exists := newManifests[key]; exists && manifest.Content == element.Content {
 			continue
 		}
 
@@ -189,7 +150,7 @@ func filterUnchangedManifests(oldManifests map[string]manifest, newManifests map
 	}
 
 	for key, element := range newManifests {
-		if manifest, exists := oldManifests[key]; exists && manifest.content == element.content {
+		if manifest, exists := oldManifests[key]; exists && manifest.Content == element.Content {
 			continue
 		}
 
@@ -199,7 +160,7 @@ func filterUnchangedManifests(oldManifests map[string]manifest, newManifests map
 	return filteredOldManifests, filteredNewManifests
 }
 
-func getUniqueManifestHashes(old map[string]manifest, new map[string]manifest) []string {
+func getUniqueManifestHashes(old map[string]k8s.Manifest, new map[string]k8s.Manifest) []string {
 	oldKeys := maps.Keys(old)
 	keys := append(oldKeys, maps.Keys(new)...)
 
