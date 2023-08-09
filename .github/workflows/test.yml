@@ -1,4 +1,4 @@
-name: 'Build'
+name: 'Test'
 
 on:
   push:
@@ -9,19 +9,9 @@ on:
 
 jobs:
   release:
-    name: 'Build Go Binary'
+    name: 'Run Tests'
 
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        goos: [linux, windows, darwin]
-        goarch: ["386", amd64, arm64]
-        exclude:
-          - goarch: "386"
-            goos: darwin
-          - goarch: arm64
-            goos: windows
     
     steps:
       - name: 'Checkout Repository'
@@ -36,5 +26,5 @@ jobs:
       - name: 'Install dependencies'
         run: go get .
 
-      - name: 'go build'
-        run: env GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o bin/kustomize-diff-${{ matrix.goos }}-${{ matrix.goarch }} main.go
+      - name: 'go test'
+        run: go test -v ./...

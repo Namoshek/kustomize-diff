@@ -32,7 +32,7 @@ which will give you a result (obviously depending on the differences) like:
  kind: Deployment
  metadata:
    name: my-app
-   namespace: foo
+   namespace: my-namespace
  spec:
 -  replicas: 1
 +  replicas: 2
@@ -59,7 +59,7 @@ which will give you a result (obviously depending on the differences) like:
  kind: Service
  metadata:
    name: my-app
-   namespace: foo
+   namespace: my-namespace
  spec:
    selector:
      app: my-app
