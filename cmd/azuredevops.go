@@ -66,7 +66,11 @@ func runAzuredevopsCommand(cmd *cobra.Command, args []string) {
 	}
 
 	content := buffer.String()
-	ado.CreatePullRequestComment(azureDevOpsParameters, content)
+	err = ado.CreatePullRequestComment(azureDevOpsParameters, content)
+	if err != nil {
+		utils.Logger.Error("Creating pull request comment failed.", zap.Error(err))
+		os.Exit(1)
+	}
 
 	os.Exit(0)
 }
