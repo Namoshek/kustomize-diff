@@ -6,15 +6,15 @@ import (
 
 func TestCreateDiffForManifestFilesReturnsCorrectResult(t *testing.T) {
 	oldManifest := "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: backend\n  namespace: my-namespace\nspec:\n  replicas: 1\n" +
-				   "---\n" +
-				   "apiVersion: v1\nkind: Service\nmetadata:\n  name: backend-headless\n  namespace: my-namespace\nspec:\n  clusterIP: None" +
-				   "---\n" +
-				   "apiVersion: v1\nkind: Service\nmetadata:\n  name: backend\n  namespace: my-namespace\nspec:\n  type: ClusterIP"
+		"---\n" +
+		"apiVersion: v1\nkind: Service\nmetadata:\n  name: backend-headless\n  namespace: my-namespace\nspec:\n  clusterIP: None" +
+		"---\n" +
+		"apiVersion: v1\nkind: Service\nmetadata:\n  name: backend\n  namespace: my-namespace\nspec:\n  type: ClusterIP"
 	newManifest := "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: backend\n  namespace: my-namespace\nspec:\n  replicas: 2\n" +
-				   "---\n" +
-				   "apiVersion: v1\nkind: Service\nmetadata:\n  name: backend-headless\n  namespace: my-namespace\nspec:\n  clusterIP: None" +
-				   "---\n" +
-				   "apiVersion: v1\nkind: Service\nmetadata:\n  name: backend\n  namespace: my-namespace\nspec:\n  type: NodePort"
+		"---\n" +
+		"apiVersion: v1\nkind: Service\nmetadata:\n  name: backend-headless\n  namespace: my-namespace\nspec:\n  clusterIP: None" +
+		"---\n" +
+		"apiVersion: v1\nkind: Service\nmetadata:\n  name: backend\n  namespace: my-namespace\nspec:\n  type: NodePort"
 
 	diffs, err := CreateDiffForManifestFiles(&oldManifest, &newManifest)
 
