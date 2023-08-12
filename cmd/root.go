@@ -29,5 +29,6 @@ func Execute() {
 }
 
 func init() {
+	rootCmd.PersistentFlags().StringP("kustomize-executable", "k", "kustomize", "Path to the kustomize binary")
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Print verbose output during execution")
 }

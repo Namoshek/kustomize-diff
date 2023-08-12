@@ -1,11 +1,51 @@
 package kubernetes
 
 import (
-	"bytes"
 	"testing"
 )
 
-func TestCreateAndPrintDiffForManifestsReturnsContentIfManifestsAreIdentical(t *testing.T) {
+func TestCreateDiffForManifestFilesReturnsCorrectResult(t *testing.T) {
+	oldManifest := "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: backend\n  namespace: my-namespace\nspec:\n  replicas: 1\n" +
+		"---\n" +
+		"apiVersion: v1\nkind: Service\nmetadata:\n  name: backend-headless\n  namespace: my-namespace\nspec:\n  clusterIP: None" +
+		"---\n" +
+		"apiVersion: v1\nkind: Service\nmetadata:\n  name: backend\n  namespace: my-namespace\nspec:\n  type: ClusterIP"
+	newManifest := "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: backend\n  namespace: my-namespace\nspec:\n  replicas: 2\n" +
+		"---\n" +
+		"apiVersion: v1\nkind: Service\nmetadata:\n  name: backend-headless\n  namespace: my-namespace\nspec:\n  clusterIP: None" +
+		"---\n" +
+		"apiVersion: v1\nkind: Service\nmetadata:\n  name: backend\n  namespace: my-namespace\nspec:\n  type: NodePort"
+
+	diffs, err := CreateDiffForManifestFiles(&oldManifest, &newManifest)
+
+	if err != nil || len(diffs) != 2 {
+		t.Fatal("Diff of files should contain diff of all changed manifests")
+	}
+
+	expectedDiff1 := ` apiVersion: apps/v1
+ kind: Deployment
+ metadata:
+   name: backend
+   namespace: my-namespace
+ spec:
+-  replicas: 1
++  replicas: 2`
+
+	expectedDiff2 := ` apiVersion: v1
+ kind: Service
+ metadata:
+   name: backend
+   namespace: my-namespace
+ spec:
+-  type: ClusterIP
++  type: NodePort`
+
+	if !diffsContainExpectedDiff(diffs, expectedDiff1) || !diffsContainExpectedDiff(diffs, expectedDiff2) {
+		t.Fatal("Diff should show changes if manifest was altered.")
+	}
+}
+
+func TestCreateDiffForManifestsReturnsContentIfManifestsAreIdentical(t *testing.T) {
 	manifest := Manifest{
 		ApiVersion: "v1",
 		Kind:       "Service",
@@ -14,15 +54,14 @@ func TestCreateAndPrintDiffForManifestsReturnsContentIfManifestsAreIdentical(t *
 		Content:    "apiVersion: v1\nkind: Service\nmetadata:\n  name: backend\n  namespace: my-namespace",
 	}
 
-	output := new(bytes.Buffer)
-	CreateAndPrintDiffForManifests(manifest, manifest, false, output)
+	diff := CreateDiffForManifests(&manifest, &manifest)
 
-	if output.String() != (manifest.Content + "\n") {
-		t.Fatal("Diff should be the content if both manifests are identical. Diff:\n" + output.String())
+	if diff.Diff != (manifest.Content) {
+		t.Fatal("Diff should be the content if both manifests are identical. Diff:\n" + diff.Diff)
 	}
 }
 
-func TestCreateAndPrintDiffForManifestsReturnsCorrectResultIfChangesAreGiven(t *testing.T) {
+func TestCreateDiffForManifestsReturnsCorrectResultIfChangesAreGiven(t *testing.T) {
 	oldManifest := Manifest{
 		ApiVersion: "v1",
 		Kind:       "Service",
@@ -38,8 +77,7 @@ func TestCreateAndPrintDiffForManifestsReturnsCorrectResultIfChangesAreGiven(t *
 		Content:    "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: backend\n  namespace: my-namespace\nspec:\n  replicas: 2",
 	}
 
-	output := new(bytes.Buffer)
-	CreateAndPrintDiffForManifests(oldManifest, newManifest, false, output)
+	diff := CreateDiffForManifests(&oldManifest, &newManifest)
 
 	expectedDiff := ` apiVersion: apps/v1
  kind: Deployment
@@ -50,12 +88,12 @@ func TestCreateAndPrintDiffForManifestsReturnsCorrectResultIfChangesAreGiven(t *
 -  replicas: 1
 +  replicas: 2`
 
-	if output.String() != (expectedDiff + "\n") {
-		t.Fatal("Diff should be the content if both manifests are identical. Diff:\n" + output.String())
+	if diff.Diff != expectedDiff {
+		t.Fatal("Diff should show changes if manifest was altered. Diff:\n" + diff.Diff)
 	}
 }
 
-func TestCreateAndPrintDiffForManifestsReturnsCorrectResultIfNewManifestIsGiven(t *testing.T) {
+func TestCreateDiffForManifestsReturnsCorrectResultIfNewManifestIsGiven(t *testing.T) {
 	oldManifest := Manifest{}
 	newManifest := Manifest{
 		ApiVersion: "v1",
@@ -65,8 +103,7 @@ func TestCreateAndPrintDiffForManifestsReturnsCorrectResultIfNewManifestIsGiven(
 		Content:    "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: backend\n  namespace: my-namespace\nspec:\n  replicas: 2",
 	}
 
-	output := new(bytes.Buffer)
-	CreateAndPrintDiffForManifests(oldManifest, newManifest, false, output)
+	diff := CreateDiffForManifests(&oldManifest, &newManifest)
 
 	expectedDiff := `+apiVersion: apps/v1
 +kind: Deployment
@@ -76,12 +113,12 @@ func TestCreateAndPrintDiffForManifestsReturnsCorrectResultIfNewManifestIsGiven(
 +spec:
 +  replicas: 2`
 
-	if output.String() != (expectedDiff + "\n") {
-		t.Fatal("Diff should be the content if both manifests are identical. Diff:\n" + output.String())
+	if diff.Diff != expectedDiff {
+		t.Fatal("Diff should show all lines as new if manifest was added. Diff:\n" + diff.Diff)
 	}
 }
 
-func TestCreateAndPrintDiffForManifestsReturnsCorrectResultIfRemovedManifestIsGiven(t *testing.T) {
+func TestCreateDiffForManifestsReturnsCorrectResultIfRemovedManifestIsGiven(t *testing.T) {
 	oldManifest := Manifest{
 		ApiVersion: "v1",
 		Kind:       "Service",
@@ -91,8 +128,7 @@ func TestCreateAndPrintDiffForManifestsReturnsCorrectResultIfRemovedManifestIsGi
 	}
 	newManifest := Manifest{}
 
-	output := new(bytes.Buffer)
-	CreateAndPrintDiffForManifests(oldManifest, newManifest, false, output)
+	diff := CreateDiffForManifests(&oldManifest, &newManifest)
 
 	expectedDiff := `-apiVersion: apps/v1
 -kind: Deployment
@@ -102,40 +138,17 @@ func TestCreateAndPrintDiffForManifestsReturnsCorrectResultIfRemovedManifestIsGi
 -spec:
 -  replicas: 2`
 
-	if output.String() != (expectedDiff + "\n") {
-		t.Fatal("Diff should be the content if both manifests are identical. Diff:\n" + output.String())
+	if diff.Diff != expectedDiff {
+		t.Fatal("Diff should show all lines as removed if manifest was deleted. Diff:\n" + diff.Diff)
 	}
 }
 
-func TestCreateAndPrintDiffForManifestsReturnsCorrectResultIfChangesAreGivenAndMarkdownFormatIsUsed(t *testing.T) {
-	oldManifest := Manifest{
-		ApiVersion: "v1",
-		Kind:       "Service",
-		Name:       "backend",
-		Namespace:  "my-namespace",
-		Content:    "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: backend\n  namespace: my-namespace\nspec:\n  replicas: 1",
-	}
-	newManifest := Manifest{
-		ApiVersion: "v1",
-		Kind:       "Service",
-		Name:       "backend",
-		Namespace:  "my-namespace",
-		Content:    "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: backend\n  namespace: my-namespace\nspec:\n  replicas: 2",
+func diffsContainExpectedDiff(diffs []ManifestDiff, expectedDiff string) bool {
+	for _, diff := range diffs {
+		if diff.Diff == expectedDiff {
+			return true
+		}
 	}
 
-	output := new(bytes.Buffer)
-	CreateAndPrintDiffForManifests(oldManifest, newManifest, true, output)
-
-	expectedDiff := "```diff\n" + ` apiVersion: apps/v1
- kind: Deployment
- metadata:
-   name: backend
-   namespace: my-namespace
- spec:
--  replicas: 1
-+  replicas: 2` + "\n```"
-
-	if output.String() != (expectedDiff + "\n") {
-		t.Fatal("Diff should be the content if both manifests are identical. Diff:\n" + output.String())
-	}
+	return false
 }

@@ -83,6 +83,22 @@ In case of success, the command will exit with the exit code `0`. Otherwise, an 
 
 To use this utility in a pull request pipeline, it is recommended to checkout the source repository two times, once for the pull request target branch and once for the pull request source branch. The output of `kustomize-diff` can then be posted as pull request comment for review, for example.
 
+#### Azure DevOps
+
+To simplify posting the diff as comment(s) on a pull request, `kustomize-diff` provides a second command called `azuredevops` which accepts a few parameters that make this a breeze:
+
+```sh
+kustomize-diff azuredevops \
+  --organization <organization> \
+  --project <project> \
+  --repository-id <repository-name-or-id> \
+  --pull-request-id <pull-request-id> \
+  --personal-access-token <pat> \
+  --hide-diff-in-spoiler \
+  --comment-per-resource \
+  <pathToOldKustomization> <pathToNewKustomization>
+```
+
 ## Development
 
 ### Run locally

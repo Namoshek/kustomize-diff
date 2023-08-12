@@ -11,9 +11,9 @@ import (
 type YamlObject map[string]interface{}
 
 // Splits the given Kustomization into individual manifests per object.
-func SplitKustomizationIntoManifests(kustomization string) (ManifestMap, error) {
-	kustomization = strings.ReplaceAll(kustomization, "\r\n", "\n")
-	parts := strings.Split(kustomization, "---\n")
+func SplitKustomizationIntoManifests(kustomization *string) (*ManifestMap, error) {
+	*kustomization = strings.ReplaceAll(*kustomization, "\r\n", "\n")
+	parts := strings.Split(*kustomization, "---\n")
 
 	result := make(ManifestMap)
 	for i := range parts {
@@ -26,7 +26,7 @@ func SplitKustomizationIntoManifests(kustomization string) (ManifestMap, error) 
 
 		result[hash] = manifest
 	}
-	return result, nil
+	return &result, nil
 }
 
 // Parses the given string as Kubernetes manifest. The parsing will fail if apiVersion, kind or metadata.name is missing.
