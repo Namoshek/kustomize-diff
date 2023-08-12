@@ -12,13 +12,14 @@ func TestFilterUnchangedManifestsDoesNotFilterNewManifests(t *testing.T) {
 	}
 	manifestHash := manifest.CalculateHash()
 
-	manifests := ManifestMap{
+	oldManifests := make(ManifestMap)
+	newManifests := ManifestMap{
 		manifestHash: manifest,
 	}
 
-	oldFilteredManifests, newFilteredManifests := FilterUnchangedManifests(make(ManifestMap), manifests)
+	oldFilteredManifests, newFilteredManifests := FilterUnchangedManifests(&oldManifests, &newManifests)
 
-	if len(oldFilteredManifests) != 0 || len(newFilteredManifests) != 1 {
+	if len(*oldFilteredManifests) != 0 || len(*newFilteredManifests) != 1 {
 		t.Fatal("New manifests should not be filtered from the manifest maps.")
 	}
 }
@@ -33,13 +34,14 @@ func TestFilterUnchangedManifestsDoesNotFilterRemovedManifests(t *testing.T) {
 	}
 	manifestHash := manifest.CalculateHash()
 
-	manifests := ManifestMap{
+	oldManifests := ManifestMap{
 		manifestHash: manifest,
 	}
+	newManifests := make(ManifestMap)
 
-	oldFilteredManifests, newFilteredManifests := FilterUnchangedManifests(manifests, make(ManifestMap))
+	oldFilteredManifests, newFilteredManifests := FilterUnchangedManifests(&oldManifests, &newManifests)
 
-	if len(oldFilteredManifests) != 1 || len(newFilteredManifests) != 0 {
+	if len(*oldFilteredManifests) != 1 || len(*newFilteredManifests) != 0 {
 		t.Fatal("Removed manifests should not be filtered from the manifest maps.")
 	}
 }
@@ -71,9 +73,9 @@ func TestFilterUnchangedManifestsDoesNotFilterChangedManifests(t *testing.T) {
 		newManifestHash: newManifest,
 	}
 
-	oldFilteredManifests, newFilteredManifests := FilterUnchangedManifests(oldManifests, newManifests)
+	oldFilteredManifests, newFilteredManifests := FilterUnchangedManifests(&oldManifests, &newManifests)
 
-	if len(oldFilteredManifests) != 1 || len(newFilteredManifests) != 1 {
+	if len(*oldFilteredManifests) != 1 || len(*newFilteredManifests) != 1 {
 		t.Fatal("Changed manifests should not be filtered from the manifest maps.")
 	}
 }
@@ -105,9 +107,9 @@ func TestFilterUnchangedManifestsDoesFilterUnchangedManifests(t *testing.T) {
 		newManifestHash: newManifest,
 	}
 
-	oldFilteredManifests, newFilteredManifests := FilterUnchangedManifests(oldManifests, newManifests)
+	oldFilteredManifests, newFilteredManifests := FilterUnchangedManifests(&oldManifests, &newManifests)
 
-	if len(oldFilteredManifests) != 0 || len(newFilteredManifests) != 0 {
+	if len(*oldFilteredManifests) != 0 || len(*newFilteredManifests) != 0 {
 		t.Fatal("Unchanged manifests should be filtered from the manifest maps.")
 	}
 }
@@ -121,13 +123,14 @@ func TestGetUniqueManifestHashesReturnsHashesOfFirstMap(t *testing.T) {
 	}
 	manifestHash := manifest.CalculateHash()
 
-	manifests := ManifestMap{
+	oldManifests := ManifestMap{
 		manifestHash: manifest,
 	}
+	newManifests := make(ManifestMap)
 
-	uniqueManifestHashes := GetUniqueManifestHashes(manifests, make(ManifestMap))
+	uniqueManifestHashes := GetUniqueManifestHashes(&oldManifests, &newManifests)
 
-	if len(uniqueManifestHashes) != 1 || uniqueManifestHashes[0] != manifestHash {
+	if len(*uniqueManifestHashes) != 1 || (*uniqueManifestHashes)[0] != manifestHash {
 		t.Fatal("The unique manifest hashes from the first map should be returned.")
 	}
 }
@@ -141,13 +144,14 @@ func TestGetUniqueManifestHashesReturnsHashesOfSecondMap(t *testing.T) {
 	}
 	manifestHash := manifest.CalculateHash()
 
-	manifests := ManifestMap{
+	oldManifests := make(ManifestMap)
+	newManifests := ManifestMap{
 		manifestHash: manifest,
 	}
 
-	uniqueManifestHashes := GetUniqueManifestHashes(make(ManifestMap), manifests)
+	uniqueManifestHashes := GetUniqueManifestHashes(&oldManifests, &newManifests)
 
-	if len(uniqueManifestHashes) != 1 || uniqueManifestHashes[0] != manifestHash {
+	if len(*uniqueManifestHashes) != 1 || (*uniqueManifestHashes)[0] != manifestHash {
 		t.Fatal("The unique manifest hashes from the second map should be returned.")
 	}
 }
@@ -176,19 +180,19 @@ func TestGetUniqueManifestHashesReturnsHashesOfBothMapsWithoutDuplicates(t *test
 	}
 	manifest3Hash := manifest3.CalculateHash()
 
-	manifests1 := ManifestMap{
+	oldManifests := ManifestMap{
 		manifest1Hash: manifest1,
 		manifest2Hash: manifest2,
 	}
 
-	manifests2 := ManifestMap{
+	newManifests := ManifestMap{
 		manifest2Hash: manifest2,
 		manifest3Hash: manifest3,
 	}
 
-	uniqueManifestHashes := GetUniqueManifestHashes(manifests1, manifests2)
+	uniqueManifestHashes := GetUniqueManifestHashes(&oldManifests, &newManifests)
 
-	if len(uniqueManifestHashes) != 3 {
+	if len(*uniqueManifestHashes) != 3 {
 		t.Fatal("The unique manifest hashes should be returned from both maps without duplicates.")
 	}
 }
