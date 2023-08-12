@@ -16,6 +16,11 @@ import (
 	"go.uber.org/zap"
 )
 
+type AzureDevOpsCommandFlags struct {
+	CommentPerResource bool
+	HideDiffInSpoiler  bool
+}
+
 var azuredevopsCmd = NewAzuredevopsCmd()
 
 func NewAzuredevopsCmd() *cobra.Command {
@@ -37,11 +42,13 @@ func init() {
 	azuredevopsCmd.Flags().StringP("project", "p", "", "The name of the project where the pull request is located")
 	azuredevopsCmd.Flags().StringP("repository-id", "r", "", "The name or id of the repository where the pull request is located")
 	azuredevopsCmd.Flags().IntP("pull-request-id", "u", 0, "The id of the pull request that should be decorated")
+	azuredevopsCmd.Flags().Bool("comment-per-resource", false, "Create a separate comment for each resource with differences")
+	azuredevopsCmd.Flags().Bool("hide-diff-in-spoiler", false, "Add a spoiler around diffs to prevent displaying large comments")
 }
 
 func runAzuredevopsCommand(cmd *cobra.Command, args []string) {
 	// Parse and validate the command flags.
-	azureDevOpsParameters, err := parseAndValidateFlags(cmd)
+	azureDevOpsParameters, azureDevOpsCommandFlags, err := parseAndValidateFlags(cmd)
 	if err != nil {
 		utils.Logger.Error("Flag validation failed.", zap.Error(err))
 		os.Exit(1)
@@ -58,72 +65,127 @@ func runAzuredevopsCommand(cmd *cobra.Command, args []string) {
 
 	oldKustomization, newKustomization, err := kustomize.BuildKustomizations(kustomizeExecutable, pathToOldVersion, pathToNewVersion)
 
-	// Create a diff of both Kustomizations and print the results.
-	buffer := new(bytes.Buffer)
-	if err := k8s.CreateAndPrintDiffForManifestFiles(oldKustomization, newKustomization, true, buffer); err != nil {
+	// Create a diff of both Kustomizations.
+	diffs, err := k8s.CreateDiffForManifestFiles(oldKustomization, newKustomization)
+	if err != nil {
 		utils.Logger.Error("Creating the diff failed.", zap.Error(err))
 		os.Exit(1)
 	}
 
-	content := buffer.String()
-	err = ado.CreatePullRequestComment(azureDevOpsParameters, content)
-	if err != nil {
-		utils.Logger.Error("Creating pull request comment failed.", zap.Error(err))
-		os.Exit(1)
+	// Prepare diff slices to process depending on the command flags.
+	var diffSlices [][]k8s.ManifestDiff
+	if azureDevOpsCommandFlags.CommentPerResource {
+		for _, diff := range diffs {
+			diffSlices = append(diffSlices, []k8s.ManifestDiff{diff})
+		}
+	} else {
+		diffSlices = append(diffSlices, diffs)
+	}
+
+	// Process the diff slices one-by-one.
+	for _, diffSlice := range diffSlices {
+		err = createPullRequestCommentForManifests(diffSlice, azureDevOpsParameters, azureDevOpsCommandFlags)
+		if err != nil {
+			utils.Logger.Error("Creating pull request comment for diff slice failed.", zap.Error(err))
+			os.Exit(1)
+		}
 	}
 
 	os.Exit(0)
 }
 
+// Creates a pull request comment with the given diffs.
+func createPullRequestCommentForManifests(diffs []k8s.ManifestDiff, azureDevOpsParameters *ado.AzureDevOpsParameters, azureDevOpsCommandFlags *AzureDevOpsCommandFlags) error {
+	// Iterate the diffs and print them into a buffer.
+	buffer := new(bytes.Buffer)
+	for _, diff := range diffs {
+		k8s.PrintDiff(&diff, true, buffer)
+	}
+
+	// Use the buffer to create a comment on the pull request.
+	content := buffer.String()
+
+	if azureDevOpsCommandFlags.HideDiffInSpoiler {
+		content = wrapContentInSpoiler(content)
+	}
+
+	err := ado.CreatePullRequestComment(azureDevOpsParameters, content)
+	if err != nil {
+		return errors.Join(errors.New("Creating pull request comment failed."), err)
+	}
+
+	return nil
+}
+
 // Parses and validates the command flags according to our requirements.
 // The flags are only validated structurally and requests may still fail if improper credentials are passed.
-func parseAndValidateFlags(cmd *cobra.Command) (*ado.AzureDevOpsParameters, error) {
+func parseAndValidateFlags(cmd *cobra.Command) (*ado.AzureDevOpsParameters, *AzureDevOpsCommandFlags, error) {
 	// Ensure the instance is a valid URI.
 	instance, err := cmd.Flags().GetString("instance")
 	if err != nil || instance == "" {
-		return nil, errors.New("The provided instance URL is invalid.")
+		return nil, nil, errors.New("The provided instance URL is invalid.")
 	}
 	instanceUrl, err := url.ParseRequestURI(instance)
 	if err != nil || instanceUrl == nil {
-		return nil, errors.New("The provided instance URL is invalid.")
+		return nil, nil, errors.New("The provided instance URL is invalid.")
 	}
 
 	// Ensure the organization is filled.
 	organization, err := cmd.Flags().GetString("organization")
 	if err != nil || organization == "" {
-		return nil, errors.New("The provided organization is invalid.")
+		return nil, nil, errors.New("The provided organization is invalid.")
 	}
 
 	// Ensure the personal access token is filled.
 	personalAccessToken, err := cmd.Flags().GetString("personal-access-token")
 	if err != nil || personalAccessToken == "" {
-		return nil, errors.New("The provided personal access token (PAT) is invalid.")
+		return nil, nil, errors.New("The provided personal access token (PAT) is invalid.")
 	}
 
 	// Ensure the project is filled.
 	project, err := cmd.Flags().GetString("project")
 	if err != nil || project == "" {
-		return nil, errors.New("The provided project is invalid.")
+		return nil, nil, errors.New("The provided project is invalid.")
 	}
 
 	// Ensure the repository id is filled.
 	repositoryId, err := cmd.Flags().GetString("repository-id")
 	if err != nil || repositoryId == "" {
-		return nil, errors.New("The provided repository id is invalid.")
+		return nil, nil, errors.New("The provided repository id is invalid.")
 	}
 
 	// Ensure the pull request id has the expected format.
 	pullRequestId, err := cmd.Flags().GetInt("pull-request-id")
 	if err != nil || pullRequestId < 1 {
-		return nil, errors.New("The provided pull-request-id is invalid: must be an integer > 0.")
+		return nil, nil, errors.New("The provided pull-request-id is invalid: must be an integer > 0.")
+	}
+
+	// Ensure boolean flags are valid.
+	commentPerResource, err := cmd.Flags().GetBool("comment-per-resource")
+	if err != nil {
+		return nil, nil, errors.New("The provided comment-per-resource is invalid.")
+	}
+
+	hideDiffInSpoiler, err := cmd.Flags().GetBool("hide-diff-in-spoiler")
+	if err != nil {
+		return nil, nil, errors.New("The provided hide-diff-in-spoiler is invalid.")
 	}
 
 	return &ado.AzureDevOpsParameters{
-		Instance:            instance,
-		Organization:        organization,
-		PersonalAccessToken: personalAccessToken,
-		Project:             project,
-		PullRequestId:       pullRequestId,
-		RepositoryId:        repositoryId,
-	}, nil
+			Instance:            instance,
+			Organization:        organization,
+			PersonalAccessToken: personalAccessToken,
+			Project:             project,
+			PullRequestId:       pullRequestId,
+			RepositoryId:        repositoryId,
+		},
+		&AzureDevOpsCommandFlags{
+			CommentPerResource: commentPerResource,
+			HideDiffInSpoiler:  hideDiffInSpoiler,
+		},
+		nil
+}
+
+func wrapContentInSpoiler(content string) string {
+	return "<details>\n<summary>Show Diff</summary>\n\n" + content + "\n</details>"
 }

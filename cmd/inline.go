@@ -40,10 +40,16 @@ func runInlineCommand(cmd *cobra.Command, args []string) {
 
 	oldKustomization, newKustomization, err := kustomize.BuildKustomizations(kustomizeExecutable, pathToOldVersion, pathToNewVersion)
 
-	// Create a diff of both Kustomizations and print the results.
-	if err := k8s.CreateAndPrintDiffForManifestFiles(oldKustomization, newKustomization, true, os.Stdout); err != nil {
+	// Create a diff of both Kustomizations.
+	diffs, err := k8s.CreateDiffForManifestFiles(oldKustomization, newKustomization)
+	if err != nil {
 		utils.Logger.Error("Creating the diff failed.", zap.Error(err))
 		os.Exit(1)
+	}
+
+	// Iterate the diffs and print them to stdout.
+	for _, diff := range diffs {
+		k8s.PrintDiff(&diff, true, os.Stdout)
 	}
 
 	os.Exit(0)

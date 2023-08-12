@@ -28,7 +28,7 @@ func (a AzureDevOpsParameters) GetOrganizationUri() string {
 }
 
 // Creates a comment with the given content on a pull request specified by the given parameters.
-func CreatePullRequestComment(azureDevOpsParameters *AzureDevOpsParameters, content string) (error) {
+func CreatePullRequestComment(azureDevOpsParameters *AzureDevOpsParameters, content string) error {
 	// Create a connection to your organization or collection.
 	connection := azuredevops.NewPatConnection(azureDevOpsParameters.GetOrganizationUri(), azureDevOpsParameters.PersonalAccessToken)
 
