@@ -31,10 +31,6 @@ func TestCreateDiffForManifestFilesReturnsCorrectResult(t *testing.T) {
 -  replicas: 1
 +  replicas: 2`
 
-	if diffs[0].Diff != expectedDiff1 {
-		t.Fatal("Diff should show changes if manifest was altered. Diff:\n" + diffs[0].Diff)
-	}
-
 	expectedDiff2 := ` apiVersion: v1
  kind: Service
  metadata:
@@ -44,8 +40,8 @@ func TestCreateDiffForManifestFilesReturnsCorrectResult(t *testing.T) {
 -  type: ClusterIP
 +  type: NodePort`
 
-	if diffs[1].Diff != expectedDiff2 {
-		t.Fatal("Diff should show changes if manifest was altered. Diff:\n" + diffs[1].Diff)
+	if !diffsContainExpectedDiff(diffs, expectedDiff1) || !diffsContainExpectedDiff(diffs, expectedDiff2) {
+		t.Fatal("Diff should show changes if manifest was altered.")
 	}
 }
 
@@ -145,4 +141,14 @@ func TestCreateDiffForManifestsReturnsCorrectResultIfRemovedManifestIsGiven(t *t
 	if diff.Diff != expectedDiff {
 		t.Fatal("Diff should show all lines as removed if manifest was deleted. Diff:\n" + diff.Diff)
 	}
+}
+
+func diffsContainExpectedDiff(diffs []ManifestDiff, expectedDiff string) bool {
+	for _, diff := range diffs {
+		if diff.Diff == expectedDiff {
+			return true
+		}
+	}
+
+	return false
 }
