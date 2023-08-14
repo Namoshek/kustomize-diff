@@ -64,6 +64,10 @@ func runAzuredevopsCommand(cmd *cobra.Command, args []string) {
 	}
 
 	oldKustomization, newKustomization, err := kustomize.BuildKustomizations(kustomizeExecutable, pathToOldVersion, pathToNewVersion)
+	if err != nil {
+		utils.Logger.Error("Building Kustomizations failed.", zap.Error(err))
+		os.Exit(1)
+	}
 
 	// Create a diff of both Kustomizations.
 	diffs, err := k8s.CreateDiffForManifestFiles(oldKustomization, newKustomization)
