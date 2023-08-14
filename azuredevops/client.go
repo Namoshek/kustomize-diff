@@ -58,7 +58,7 @@ func CreatePullRequestComment(azureDevOpsParameters *AzureDevOpsParameters, cont
 
 	responseValue, err := httpClient.CreateThread(ctx, createThreadRequest)
 	if err != nil {
-		errors.Join(errors.New("Creating new comment thread on pull request failed."), err)
+		return errors.Join(errors.New("Creating new comment thread on pull request failed."), err)
 	}
 
 	utils.Logger.Info("Created comment thread successfully.", zap.Int("threadId", *responseValue.Id))
