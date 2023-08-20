@@ -10,8 +10,8 @@ Make sure the downloaded binary is executable (`chmod -x`) and place it somewher
 To download and install in one go (make sure to select the correct binary for your system), use:
 
 ```sh
-wget https://github.com/Namoshek/kustomize-diff/releases/download/v0.2.2/kustomize-diff-v0.2.2-linux-amd64.tar.gz \
-  && tar -xzvf kustomize-diff-v0.2.2-linux-amd64.tar.gz \
+wget https://github.com/Namoshek/kustomize-diff/releases/download/v0.3.0/kustomize-diff-v0.3.0-linux-amd64.tar.gz \
+  && tar -xzvf kustomize-diff-v0.3.0-linux-amd64.tar.gz \
   && chmod a+x kustomize-diff \
   && sudo mv kustomize-diff /usr/local/bin/kustomize-diff
 ```
