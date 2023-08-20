@@ -17,8 +17,10 @@ import (
 )
 
 type AzureDevOpsCommandFlags struct {
-	CommentPerResource bool
-	HideDiffInSpoiler  bool
+	CommentPerResource   bool
+	HideDiffInSpoiler    bool
+	PrependedCommentText string
+	AppendedCommentText  string
 }
 
 var azuredevopsCmd = NewAzuredevopsCmd()
@@ -37,13 +39,15 @@ func init() {
 	rootCmd.AddCommand(azuredevopsCmd)
 
 	azuredevopsCmd.Flags().StringP("instance", "i", "https://dev.azure.com", "Base URI to the Azure DevOps services or on-premise server")
-	azuredevopsCmd.Flags().StringP("organization", "o", "", "The name of the organization (or collection in case of Azure DevOps Server)")
 	azuredevopsCmd.Flags().StringP("personal-access-token", "a", "", "The personal access token used for authentication")
+	azuredevopsCmd.Flags().StringP("organization", "o", "", "The name of the organization (or collection in case of Azure DevOps Server)")
 	azuredevopsCmd.Flags().StringP("project", "p", "", "The name of the project where the pull request is located")
 	azuredevopsCmd.Flags().StringP("repository-id", "r", "", "The name or id of the repository where the pull request is located")
 	azuredevopsCmd.Flags().IntP("pull-request-id", "u", 0, "The id of the pull request that should be decorated")
 	azuredevopsCmd.Flags().Bool("comment-per-resource", false, "Create a separate comment for each resource with differences")
 	azuredevopsCmd.Flags().Bool("hide-diff-in-spoiler", false, "Add a spoiler around diffs to prevent displaying large comments")
+	azuredevopsCmd.Flags().String("prepended-comment-text", "", "Text to prepend to created pull request comments; it is added before and outside spoilers if enabled")
+	azuredevopsCmd.Flags().String("appended-comment-text", "", "Text to append to created pull request comments; it is added after and outside spoilers if enabled")
 }
 
 func runAzuredevopsCommand(cmd *cobra.Command, args []string) {
@@ -101,19 +105,25 @@ func runAzuredevopsCommand(cmd *cobra.Command, args []string) {
 // Creates a pull request comment with the given diffs.
 func createPullRequestCommentForManifests(diffs []k8s.ManifestDiff, azureDevOpsParameters *ado.AzureDevOpsParameters, azureDevOpsCommandFlags *AzureDevOpsCommandFlags) error {
 	// Iterate the diffs and print them into a buffer.
-	buffer := new(bytes.Buffer)
+	diffBuffer := new(bytes.Buffer)
 	for _, diff := range diffs {
-		k8s.PrintDiff(&diff, true, buffer)
+		k8s.PrintDiff(&diff, true, diffBuffer)
+	}
+
+	diffContent := diffBuffer.String()
+	if azureDevOpsCommandFlags.HideDiffInSpoiler {
+		diffContent = wrapContentInSpoiler(diffContent)
 	}
 
 	// Use the buffer to create a comment on the pull request.
-	content := buffer.String()
+	contentBuffer := bytes.NewBufferString("")
 
-	if azureDevOpsCommandFlags.HideDiffInSpoiler {
-		content = wrapContentInSpoiler(content)
+	err := writeContentToBuffer(contentBuffer, diffContent, azureDevOpsCommandFlags)
+	if err != nil {
+		return errors.Join(errors.New("Writing content to buffer failed."), err)
 	}
 
-	err := ado.CreatePullRequestComment(azureDevOpsParameters, content)
+	err = ado.CreatePullRequestComment(azureDevOpsParameters, contentBuffer.String())
 	if err != nil {
 		return errors.Join(errors.New("Creating pull request comment failed."), err)
 	}
@@ -175,6 +185,17 @@ func parseAndValidateFlags(cmd *cobra.Command) (*ado.AzureDevOpsParameters, *Azu
 		return nil, nil, errors.New("The provided hide-diff-in-spoiler is invalid.")
 	}
 
+	// Ensure optional texts were passed successfully.
+	prependedCommentText, err := cmd.Flags().GetString("prepended-comment-text")
+	if err != nil {
+		return nil, nil, errors.New("The provided prepended-comment-text is invalid.")
+	}
+
+	appendedCommentText, err := cmd.Flags().GetString("appended-comment-text")
+	if err != nil {
+		return nil, nil, errors.New("The provided appended-comment-text is invalid.")
+	}
+
 	return &ado.AzureDevOpsParameters{
 			Instance:            instance,
 			Organization:        organization,
@@ -184,10 +205,35 @@ func parseAndValidateFlags(cmd *cobra.Command) (*ado.AzureDevOpsParameters, *Azu
 			RepositoryId:        repositoryId,
 		},
 		&AzureDevOpsCommandFlags{
-			CommentPerResource: commentPerResource,
-			HideDiffInSpoiler:  hideDiffInSpoiler,
+			CommentPerResource:   commentPerResource,
+			HideDiffInSpoiler:    hideDiffInSpoiler,
+			PrependedCommentText: prependedCommentText,
+			AppendedCommentText:  appendedCommentText,
 		},
 		nil
+}
+
+func writeContentToBuffer(buffer *bytes.Buffer, content string, azureDevOpsCommandFlags *AzureDevOpsCommandFlags) error {
+	if azureDevOpsCommandFlags.PrependedCommentText != "" {
+		_, err := buffer.WriteString(azureDevOpsCommandFlags.PrependedCommentText + "\n")
+		if err != nil {
+			return errors.Join(errors.New("Adding prepended-comment-text to buffer failed."), err)
+		}
+	}
+
+	_, err := buffer.WriteString(content)
+	if err != nil {
+		return errors.Join(errors.New("Adding content to buffer failed."), err)
+	}
+
+	if azureDevOpsCommandFlags.AppendedCommentText != "" {
+		_, err := buffer.WriteString("\n" + azureDevOpsCommandFlags.AppendedCommentText)
+		if err != nil {
+			return errors.Join(errors.New("Adding appended-comment-text to buffer failed."), err)
+		}
+	}
+
+	return nil
 }
 
 func wrapContentInSpoiler(content string) string {
