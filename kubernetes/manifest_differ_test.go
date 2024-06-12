@@ -38,7 +38,9 @@ func TestCreateDiffForManifestFilesReturnsCorrectResult(t *testing.T) {
    namespace: my-namespace
  spec:
 -  type: ClusterIP
-+  type: NodePort`
++  type: NodePort
++  sessionAffinity: |
++    ClientIp`
 
 	if !diffsContainExpectedDiff(diffs, expectedDiff1) || !diffsContainExpectedDiff(diffs, expectedDiff2) {
 		t.Fatal("Diff should show changes if manifest was altered.")
