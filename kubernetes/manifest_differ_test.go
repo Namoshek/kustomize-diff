@@ -14,7 +14,7 @@ func TestCreateDiffForManifestFilesReturnsCorrectResult(t *testing.T) {
 		"---\n" +
 		"apiVersion: v1\nkind: Service\nmetadata:\n  name: backend-headless\n  namespace: my-namespace\nspec:\n  clusterIP: None" +
 		"---\n" +
-		"apiVersion: v1\nkind: Service\nmetadata:\n  name: backend\n  namespace: my-namespace\nspec:\n  type: NodePort"
+		"apiVersion: v1\nkind: Service\nmetadata:\n  name: backend\n  namespace: my-namespace\nspec:\n  type: NodePort\n  sessionAffinity: |\n    ClientIp"
 
 	diffs, err := CreateDiffForManifestFiles(&oldManifest, &newManifest)
 
