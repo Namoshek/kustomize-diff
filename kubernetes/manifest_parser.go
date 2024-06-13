@@ -12,21 +12,53 @@ type YamlObject map[string]interface{}
 
 // Splits the given Kustomization into individual manifests per object.
 func SplitKustomizationIntoManifests(kustomization *string) (*ManifestMap, error) {
-	*kustomization = strings.ReplaceAll(*kustomization, "\r\n", "\n")
-	parts := strings.Split(*kustomization, "---\n")
-
 	result := make(ManifestMap)
-	for i := range parts {
-		manifest, err := parseManifest(parts[i])
-		if err != nil {
-			return nil, errors.Join(errors.New("Parsing manifest failed."), err)
+
+	*kustomization = strings.ReplaceAll(*kustomization, "\r\n", "\n")
+	lines := strings.Split(*kustomization, "\n")
+
+	var sb strings.Builder
+	for _, line := range lines {
+		if line != "---" {
+			sb.WriteString(line + "\n")
+
+			continue
 		}
 
-		hash := manifest.CalculateHash()
+		if sb.Len() == 0 {
+			continue
+		}
 
-		result[hash] = manifest
+		err := parseAndHashManifest(sb.String(), result)
+		if err != nil {
+			return nil, err
+		}
+
+		sb.Reset()
 	}
+
+	if sb.Len() > 0 {
+		err := parseAndHashManifest(sb.String(), result)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &result, nil
+}
+
+// Parses the given string as Kubernetes manifest and puts it as hash in the provided manifests map.
+func parseAndHashManifest(content string, manifests ManifestMap) error {
+	manifest, err := parseManifest(content)
+	if err != nil {
+		return errors.Join(errors.New("Parsing manifest failed."), err)
+	}
+
+	hash := manifest.CalculateHash()
+
+	manifests[hash] = manifest
+
+	return nil
 }
 
 // Parses the given string as Kubernetes manifest. The parsing will fail if apiVersion, kind or metadata.name is missing.

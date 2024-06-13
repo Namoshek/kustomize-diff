@@ -109,6 +109,14 @@ The application can be run locally using:
 go run main.go <arguments> [flags]
 ```
 
+### Run Tests
+
+To run the tests, use:
+
+```sh
+go test -v --cover ./...
+```
+
 ### Build
 
 To build the application, use:
