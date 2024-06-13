@@ -14,7 +14,7 @@ func TestCreateDiffForManifestFilesReturnsCorrectResult(t *testing.T) {
 		"---\n" +
 		"apiVersion: v1\nkind: Service\nmetadata:\n  name: backend-headless\n  namespace: my-namespace\nspec:\n  clusterIP: None" +
 		"---\n" +
-		"apiVersion: v1\nkind: Service\nmetadata:\n  name: backend\n  namespace: my-namespace\nspec:\n  type: NodePort\n  sessionAffinity: |\n    ClientIp"
+		"apiVersion: v1\nkind: Service\nmetadata:\n  name: backend\n  namespace: my-namespace\nspec:\n  type: NodePort\n  sessionAffinity: |\n    -----BEGIN CERTIFICATE-----\n    MIIF6TCCA8WgAwIBAgIUClmW\n    -----END CERTIFICATE-----"
 
 	diffs, err := CreateDiffForManifestFiles(&oldManifest, &newManifest)
 
@@ -40,7 +40,9 @@ func TestCreateDiffForManifestFilesReturnsCorrectResult(t *testing.T) {
 -  type: ClusterIP
 +  type: NodePort
 +  sessionAffinity: |
-+    ClientIp`
++    -----BEGIN CERTIFICATE-----
++    MIIF6TCCA8WgAwIBAgIUClmW
++    -----END CERTIFICATE-----`
 
 	if !diffsContainExpectedDiff(diffs, expectedDiff1) || !diffsContainExpectedDiff(diffs, expectedDiff2) {
 		t.Fatal("Diff should show changes if manifest was altered.")
