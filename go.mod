@@ -8,7 +8,7 @@ require github.com/hashicorp/go-set v0.1.14
 
 require github.com/kylelemons/godebug v1.1.0
 
-require github.com/spf13/cobra v1.8.0
+require github.com/spf13/cobra v1.8.1
 
 require golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1
 
