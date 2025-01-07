@@ -80,6 +80,11 @@ func runAzuredevopsCommand(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
+	if len(diffs) == 0 {
+		utils.Logger.Debug("No diff found, exiting.")
+		os.Exit(0)
+	}
+
 	// Prepare diff slices to process depending on the command flags.
 	var diffSlices [][]k8s.ManifestDiff
 	if azureDevOpsCommandFlags.CommentPerResource {
