@@ -1,8 +1,10 @@
 package kubernetes
 
 import (
+	"maps"
+	"slices"
+
 	"github.com/hashicorp/go-set"
-	"golang.org/x/exp/maps"
 )
 
 // Filters all common manifests with identical content from the given manifest maps.
@@ -32,8 +34,8 @@ func FilterUnchangedManifests(oldManifests *ManifestMap, newManifests *ManifestM
 // Returns a list of MD5 hashes for all manifests in the given input maps.
 // If a manifest with identical MD5 hash is present in both maps, the hash is returned only once.
 func GetUniqueManifestHashes(old *ManifestMap, new *ManifestMap) *[]string {
-	oldKeys := maps.Keys(*old)
-	keys := append(oldKeys, maps.Keys(*new)...)
+	oldKeys := slices.Collect(maps.Keys(*old))
+	keys := append(oldKeys, slices.Collect(maps.Keys(*new))...)
 	slice := set.From[string](keys).Slice()
 
 	return &slice

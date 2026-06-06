@@ -8,7 +8,7 @@ import (
 )
 
 // This type is a convenience layer on top of a generic map and represents a YAML object.
-type YamlObject map[string]interface{}
+type YamlObject map[string]any
 
 // Splits the given Kustomization into individual manifests per object.
 func SplitKustomizationIntoManifests(kustomization *string) (*ManifestMap, error) {
@@ -97,7 +97,7 @@ func parseManifest(content string) (Manifest, error) {
 }
 
 // Retrieves the value for a given key from the given YAML object.
-func (o YamlObject) getMapValueOrDefault(key string, defaultValue interface{}) interface{} {
+func (o YamlObject) getMapValueOrDefault(key string, defaultValue any) any {
 	if x, found := o[key]; found {
 		return x
 	}
