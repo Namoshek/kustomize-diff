@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 // This type is a convenience layer on top of a generic map and represents a YAML object.
