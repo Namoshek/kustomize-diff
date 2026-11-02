@@ -10,7 +10,7 @@ require github.com/spf13/cobra v1.10.2
 
 require (
 	go.uber.org/zap v1.28.0
-	go.yaml.in/yaml/v3 v3.0.5
+	go.yaml.in/yaml/v3 v3.0.6
 )
 
 require (
